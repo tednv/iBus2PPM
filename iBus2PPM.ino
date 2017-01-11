@@ -26,7 +26,28 @@
 // If you want to use PWM, you can use channel 5+6 on Rx directly. Then swap with other channels in PPM output
 // To use channel 9 as PPM channel 5, det SWAPCH5 to 9. Channel 5 will be on channel 9 in PPM stream
 #define SWAPCH5 8   // channel 9 mapped to channel 5 and the other way around
-#define SWAPCH6 9  // channel 10 mapped to channel 6 and t1222he other way around
+#define SWAPCH6 9  // channel 10 mapped to channel 6 and the other way around
+
+// Translate transmitter values for APM firmware / Ardupilot
+// Tested with APM 2.8 and Mission Planner 1.3.41
+// For 2D gimbal and Flysky FS-I6 radio, use the following mapping
+// Be sure to set PPM Output = Off in radio RX setup
+// CH5 VRA - Gimbal Roll
+// CH6 VRB - Gimbal Pitch
+// CH7 SWA - Radio 7
+// CH8 SWB - Radio 8
+// CH9 SWC+D - Radio 5 (Flight modes, modified by SWD)
+// CH10 SWD - Radio 6
+// Also override PPM_CHANS to 10 below (which is actually 11)
+// this should not be added to readRX() since this does not get
+// used for ppm but only gets used for pwm gimbal offset
+// For APM set APMTarget to true and uncomment the 3 lines bellow
+
+#define APMTarget false
+//#define PPM_CHANS 10
+//#define SWAPCH5 9
+//#define SWAPCH6 10
+//////////////////////////////////////////////////////////////////
 
 #define IBUS_MAXCHANNELS 14
 // Failsafe values for the channels. FS-i6 does not support throttle failsafe < 1000, so we must fake it
@@ -165,7 +186,40 @@ void readRx()
           rcValueSafe[1] = rcValue[1];
           rcValueSafe[2] = rcValue[2];
           rcValueSafe[3] = rcValue[3];
-          rcValueSafe[4] = rcValue[SWAPCH5-1];
+                   
+          // Because ardupilot is awesome, flight modes can ONLY be on channel 5 and can ONLY be          
+          // within the ardupilot specified ranges! so, ibus2ppm can certainly provide those
+          // ranges since ardupilot offers no means of modifying them         
+          if ( APMTarget == true ) {
+                     if ( rcValue[SWAPCH5-1] < 1100 ) 
+                     {                
+                                rcValueSafe[4] = 1201;              
+                     } 
+                     else if ( rcValue[SWAPCH5-1] > 1100 && rcValue[SWAPCH5-1] < 1300 ) 
+                     {                
+                                rcValueSafe[4] = 1301;              
+                     } 
+                     else if ( rcValue[SWAPCH5-1] > 1300 && rcValue[SWAPCH5-1] < 1500 ) 
+                     {                
+                                rcValueSafe[4] = 1401;              
+                     } 
+                     else if ( rcValue[SWAPCH5-1] > 1500 && rcValue[SWAPCH5-1] < 1700 ) 
+                     {                
+                                rcValueSafe[4] = 1601;              
+                     } 
+                     else if ( rcValue[SWAPCH5-1] > 1700 && rcValue[SWAPCH5-1] < 1900 ) 
+                     {                
+                                rcValueSafe[4] = 1701;              
+                     } 
+                     else if ( rcValue[SWAPCH5-1] > 1900 )
+                     {                
+                                rcValueSafe[4] = 1801;              
+                     }          
+          } 
+          else 
+          {              
+                     rcValueSafe[4] = rcValue[SWAPCH5-1];          
+          }
           rcValueSafe[5] = rcValue[SWAPCH6-1];
           rcValueSafe[6] = rcValue[6];
           rcValueSafe[7] = rcValue[7];
@@ -260,6 +314,7 @@ ISR(TIMER1_COMPA_vect){  //leave this alone
   }
   sei();
 }
+
 
 
 
